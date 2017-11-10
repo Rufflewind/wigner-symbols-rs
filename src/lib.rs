@@ -105,7 +105,7 @@ fn phase(phi: i32) -> i32 {
     }
 }
 
-/// Check @|j1 − j2| ≤ j3 ≤ j1 + j2@ and @j1 + j2 + j3 ∈ ℤ@.
+/// Check `|j1 − j2| ≤ j3 ≤ j1 + j2` and `j1 + j2 + j3 ∈ ℤ`.
 #[inline]
 pub fn triangle_condition(tj1: i32, tj2: i32, tj3: i32) -> bool {
     let d = tj1 + tj2 - tj3;
@@ -179,7 +179,7 @@ pub fn wigner3j_raw_c(
     {
         wigner3j_raw(jm1, jm2, tj1, tm1, tj2, tm2, tj3, tm3)
     } else {
-        SignedSqrtRational::default()
+        Default::default()
     }
 }
 
@@ -234,6 +234,123 @@ pub fn wigner3j_raw(
     SignedSqrtRational::new(z2, z1)
 }
 
+/// Calculate a Wigner 6-j symbol:
+///
+/// ```text
+/// ⎧j1 j2 j3⎫
+/// ⎩j4 j5 j6⎭
+/// ```
+pub fn wigner6j(
+    tj1: i32,
+    tj2: i32,
+    tj3: i32,
+    tj4: i32,
+    tj5: i32,
+    tj6: i32,
+) -> SignedSqrtRational
+{
+    if triangle_condition(tj1, tj2, tj3) &&
+        triangle_condition(tj1, tj5, tj6) &&
+        triangle_condition(tj4, tj2, tj6) &&
+        triangle_condition(tj4, tj5, tj3)
+    {
+        wigner6j_raw(tj1, tj2, tj3, tj4, tj5, tj6)
+    } else {
+        Default::default()
+    }
+}
+
+/// Calculate the Wigner 6-j symbol.  The selection rules are not checked.
+pub fn wigner6j_raw(
+    tja: i32,
+    tjb: i32,
+    tjc: i32,
+    tjd: i32,
+    tje: i32,
+    tjf: i32,
+) -> SignedSqrtRational
+{
+    let z1 =
+        triangular_factor(tja, tje, tjf)
+        * triangular_factor(tjd, tjb, tjf)
+        * triangular_factor(tjd, tje, tjc)
+        / triangular_factor(tja, tjb, tjc);
+    let z2 = tetrahedral_sum(tja, tje, tjf, tjd, tjb, tjc);
+    SignedSqrtRational::new(z2, z1)
+}
+
+/// Calculate a Wigner 9-j symbol:
+///
+/// ```text
+/// ⎧ja jb jc⎫
+/// ⎨jd je jf⎬
+/// ⎩jg jh ji⎭
+/// ```
+pub fn wigner9j(
+    tja: i32,
+    tjb: i32,
+    tjc: i32,
+    tjd: i32,
+    tje: i32,
+    tjf: i32,
+    tjg: i32,
+    tjh: i32,
+    tji: i32,
+) -> SignedSqrtRational
+{
+    if triangle_condition(tja, tjb, tjc) &&
+        triangle_condition(tjd, tje, tjf) &&
+        triangle_condition(tjg, tjh, tji) &&
+        triangle_condition(tja, tjd, tjg) &&
+        triangle_condition(tjb, tje, tjh) &&
+        triangle_condition(tjc, tjf, tji)
+    {
+        wigner9j_raw(tja, tjb, tjc, tjd, tje, tjf, tjg, tjh, tji)
+    } else {
+        Default::default()
+    }
+}
+
+/// Calculate the Wigner 9-j symbol.  The selection rules are not checked.
+pub fn wigner9j_raw(
+    tja: i32,
+    tjb: i32,
+    tjc: i32,
+    tjd: i32,
+    tje: i32,
+    tjf: i32,
+    tjg: i32,
+    tjh: i32,
+    tji: i32,
+) -> SignedSqrtRational
+{
+    let tkmin = *[
+        (tjh - tjd).abs(),
+        (tjb - tjf).abs(),
+        (tja - tji).abs(),
+    ].iter().max().unwrap();
+    let tkmax = *[
+        tjh + tjd,
+        tjb + tjf,
+        tja + tji,
+    ].iter().min().unwrap();
+    let z2 = (0 .. (tkmax - tkmin) / 2 + 1).map(|i| {
+        let tk = tkmin + i * 2;
+        Integer::from(minus_one_pow(tk * (tk + 1)))
+            * tetrahedral_sum(tja, tjb, tjc, tjf, tji, tk)
+            * tetrahedral_sum(tjf, tjd, tje, tjh, tjb, tk)
+            * tetrahedral_sum(tjh, tji, tjg, tja, tjd, tk)
+    }).sum();
+    let z1 =
+        triangular_factor(tja, tjb, tjc) *
+        triangular_factor(tjd, tje, tjf) *
+        triangular_factor(tjg, tjh, tji) *
+        triangular_factor(tja, tjd, tjg) *
+        triangular_factor(tjb, tje, tjh) *
+        triangular_factor(tjc, tjf, tji);
+    SignedSqrtRational::new(z2, z1)
+}
+
 #[inline]
 pub fn sort2<T: Ord>(a: T, b: T) -> (T, T) {
     if b < a {
@@ -279,6 +396,56 @@ pub fn triangular_factor_raw(jd: i32, ja: i32, jb: i32, jc: i32) -> Rational {
         factorial(ju) * factorial(jv),
         falling_factorial(jd, jd - jw),
     ))
+}
+
+/// Calculate the symbol in the paper by L. Wei that is enclosed in square
+/// brackets:
+///
+/// ```text
+/// ⎡j11 j12 j13⎤
+/// ⎣j21 j22 j23⎦
+/// ```
+///
+/// This is essentially a Wigner 6-j symbol without the triangular factors,
+/// although the ordering of the arguments is a bit funky here.
+pub fn tetrahedral_sum(
+    tja: i32,
+    tje: i32,
+    tjf: i32,
+    tjd: i32,
+    tjb: i32,
+    tjc: i32,
+) -> Integer
+{
+    let jjja = (tjc - tja + tjb) / 2;
+    let jjjb = (tja - tjb + tjc) / 2;
+    let jjjc = (tjb - tjc + tja) / 2;
+    let jabc = (tja + tjb + tjc) / 2;
+    let jaef = (tja + tje + tjf) / 2;
+    let jdbf = (tjd + tjb + tjf) / 2;
+    let jdec = (tjd + tje + tjc) / 2;
+    let kmin = *[jabc, jdec, jdbf, jaef].iter().max().unwrap();
+    let kmax = *[
+        tja + tjd + tjb + tje,
+        tjb + tje + tjc + tjf,
+        tja + tjd + tjc + tjf,
+    ].iter().max().unwrap() / 2;
+    (kmin .. kmax + 1).map(|k| {
+        Integer::from(minus_one_pow(k))
+            * binomial(k + 1, k - jabc)
+            * binomial(jjja, k - jaef)
+            * binomial(jjjb, k - jdbf)
+            * binomial(jjjc, k - jdec)
+    }).sum()
+}
+
+#[inline]
+pub fn minus_one_pow(e: i32) -> i32 {
+    if e % 2 == 0 {
+        1
+    } else {
+        -1
+    }
 }
 
 #[cfg(test)]
