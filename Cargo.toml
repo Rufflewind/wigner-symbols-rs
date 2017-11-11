@@ -17,3 +17,6 @@ exclude = [".gitignore"]
 version = "0.7.0"
 default-features = false
 features = ["integer", "rational"]
+
+[dev-dependencies]
+md5 = "0.3.6"

@@ -1,6 +1,9 @@
+#[cfg(test)]
+extern crate md5;
 extern crate rug;
 
 use std::cmp::Ordering;
+use std::ops::Range;
 use rug::{Integer, Rational};
 use rug::ops::Pow;
 
@@ -50,7 +53,14 @@ impl SignedSqrtRational {
     /// Returns the squared value of the expression.
     #[inline]
     pub fn sq(self) -> Rational {
-        self.0.abs()
+        self.signed_sq().abs()
+    }
+
+    /// Returns the squared value of the expression, with the sign adjusted to
+    /// match the sign of the original expression.
+    #[inline]
+    pub fn signed_sq(self) -> Rational {
+        self.0
     }
 }
 
@@ -223,14 +233,15 @@ pub fn wigner3j_raw(
         let mut s = c0.clone();
         let mut c = c0;
         for k in kmin + 1 .. kmax + 1 {
-            c = c
+            c = -c
                 * Integer::from(jjj2 - k + 1) / Integer::from(k)
                 * Integer::from(jsm1 - k + 1) / Integer::from(jjj1 - (jsm1 - k))
-                * Integer::from(jm2  - k + 1) / Integer::from(jjj3 - (jm2  - k));
-            s -= &c;
+                * Integer::from(jm2 - k + 1) / Integer::from(jjj3 - (jm2  - k));
+            s += &c;
         }
         s
     };
+    println!("{}, {}", z2, z1);
     SignedSqrtRational::new(z2, z1)
 }
 
@@ -336,7 +347,7 @@ pub fn wigner9j_raw(
     ].iter().min().unwrap();
     let z2 = (0 .. (tkmax - tkmin) / 2 + 1).map(|i| {
         let tk = tkmin + i * 2;
-        Integer::from(minus_one_pow(tk * (tk + 1)))
+        Integer::from(phase(tk * (tk + 1)))
             * tetrahedral_sum(tja, tjb, tjc, tjf, tji, tk)
             * tetrahedral_sum(tjf, tjd, tje, tjh, tjb, tk)
             * tetrahedral_sum(tjh, tji, tjg, tja, tjd, tk)
@@ -431,7 +442,7 @@ pub fn tetrahedral_sum(
         tja + tjd + tjc + tjf,
     ].iter().max().unwrap() / 2;
     (kmin .. kmax + 1).map(|k| {
-        Integer::from(minus_one_pow(k))
+        Integer::from(phase(k))
             * binomial(k + 1, k - jabc)
             * binomial(jjja, k - jaef)
             * binomial(jjjb, k - jdbf)
@@ -439,28 +450,140 @@ pub fn tetrahedral_sum(
     }).sum()
 }
 
+pub fn intersect_ranges(a: Range<i32>, b: Range<i32>) -> Range<i32> {
+    a.start.max(b.start) .. a.end.min(b.end)
+}
+
+pub struct Step<I> {
+    pub iter: I,
+    pub step: usize,
+}
+
+impl<I: Iterator> Iterator for Step<I> {
+    type Item = I::Item;
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        let item = self.iter.next();
+        if item.is_some() && self.step >= 2 {
+            self.iter.nth(self.step - 2);
+        }
+        item
+    }
+}
+
 #[inline]
-pub fn minus_one_pow(e: i32) -> i32 {
-    if e % 2 == 0 {
-        1
-    } else {
-        -1
+pub fn get_triangular_tjs(tj_max: i32, tj1: i32, tj2: i32) -> Step<Range<i32>> {
+    Step {
+        iter: (tj1 - tj2).abs() .. tj_max.min(tj1 + tj2) + 1,
+        step: 2,
+    }
+}
+
+#[inline]
+pub fn get_bitriangular_tjs(
+    tj_max: i32,
+    tj1: i32,
+    tj2: i32,
+    tj3: i32,
+    tj4: i32,
+) -> Step<Range<i32>>
+{
+    Step {
+        iter: if (tj1 + tj2 + tj3 + tj4) % 2 != 0 {
+            0 .. 0
+        } else {
+            intersect_ranges(
+                get_triangular_tjs(tj_max, tj1, tj2).iter,
+                get_triangular_tjs(tj_max, tj3, tj4).iter,
+            )
+        },
+        step: 2,
+    }
+}
+
+#[inline]
+pub fn get_tms(tj: i32) -> Step<Range<i32>> {
+    Step { iter: -tj .. tj + 1, step: 2 }
+}
+
+#[inline]
+pub fn get_3tjms(tj_max: i32, callback: &mut FnMut(i32, i32, i32, i32, i32, i32)) {
+    for tj1 in 0 .. tj_max + 1 {
+        for tj2 in 0 .. tj_max + 1 {
+            for tj3 in get_triangular_tjs(tj_max, tj1, tj2) {
+                for tm1 in get_tms(tj1) {
+                    for tm2 in get_tms(tj2) {
+                        let tm3 = -(tm1 + tm2);
+                        if tm3.abs() > tj3 {
+                            continue;
+                        }
+                        callback(tj1, tm1, tj2, tm2, tj3, tm3);
+                    }
+                }
+            }
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::fmt;
+    use std::io::Write;
     use super::*;
 
+    const CG_HASHES: &[(i32, &str)] = &[
+        (5,  "e74c501299b456a6cb29e4f5714e9061"), // 681
+        (10, "b6d0770101f4ebdaa9a55d94f07b001f"), // 11487
+        (15, "9192023f26dae0eebcce11afa7372eb6"), // 69272
+        (20, "75ef56391b61e1bb2336e36ac7834216"), // 259523
+        (25, "5901128892a264b73b5479b70b331fd0"), // 737113
+        (30, "75ef56391b61e1bb2336e36ac7834216"), // 1747984
+        (40, "2f9b936ea977249c1fea8a22d190a4cf"), // 6931995
+    ];
+
+    fn lookup<'a, K: Eq, V>(table: &'a [(K, V)], key: &K) -> Option<&'a V> {
+        table.iter().find(|&&(ref k, _)| k == key).map(|x| &x.1)
+    }
+
+    pub struct RenderValue(pub SignedSqrtRational);
+
+    impl fmt::Display for RenderValue {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            let r = self.0.clone().signed_sq();
+            write!(f, "{}/{}", r.numer(), r.denom())
+        }
+    }
+
     #[test]
-    fn it_works() {
-        assert_eq!(f64::from(SignedSqrtRational::default()), 0.0);
+    fn test_clebsch_gordan() {
+        let tj_max = 25;
+        let mut f = md5::Context::new();
+        get_3tjms(tj_max, &mut |tj1, tm1, tj2, tm2, tj3, tm3| {
+            let r = clebsch_gordan(tj1, tm1, tj2, tm2, tj3, -tm3);
+            write!(f, "{}\t{}\t{}\t{}\t{}\t{}\t{}\n",
+                   tj1, tm1, tj2, tm2, tj3, -tm3, RenderValue(r)).unwrap();
+        });
+        assert_eq!(&format!("{:x}", f.compute()),
+                   *lookup(CG_HASHES, &tj_max).expect("hash not available"));
+    }
+
+    #[test]
+    fn test_signed_sqrt_rational() {
         assert_eq!(f64::from(SignedSqrtRational::default()), 0.0);
 
         assert_eq!(wigner3j(0, 0, 0, 0, 0, 0),
                    SignedSqrtRational::new(1.into(), 1.into()));
-        assert_eq!(clebsch_gordan(5, -3, 1, 1, 4, -2),
-                   SignedSqrtRational::new((-1).into(), (2, 3).into()));
-        // TODO: Add more extensive testing
+    }
+
+    // FIXME: Test 3j (not CG), 6j and 9j
+
+    #[test]
+    fn test_sort3() {
+        assert_eq!(sort3(1, 2, 3), (1, 2, 3));
+        assert_eq!(sort3(2, 1, 3), (1, 2, 3));
+        assert_eq!(sort3(2, 3, 1), (1, 2, 3));
+        assert_eq!(sort3(3, 2, 1), (1, 2, 3));
+        assert_eq!(sort3(3, 1, 2), (1, 2, 3));
+        assert_eq!(sort3(1, 3, 2), (1, 2, 3));
     }
 }
