@@ -2,14 +2,14 @@
 name = "wigner-symbols"
 version = "0.1.0"
 authors = ["Phil Ruffwind <rf@rufflewind.com>"]
-description = "Exact Clebsch–Gordan coefficients and Wigner 3-jm, 6-j, and 9-j symbols"
+description = "Exact Clebsch–Gordan coefficients and Wigner 3-jm, 6-j, and 9-j symbols for coupling and recoupling angular momenta in quantum mechanics"
 documentation = "https://docs.rs/wigner-symbols"
 repository = "https://github.com/Rufflewind/wigner-symbols-rs"
 readme = "README.md"
 keywords = ["clebsch", "gordan", "wigner"]
 categories = ["science"]
 license = "MIT/Apache-2.0"
-exclude = [".gitignore"]
+exclude = [".gitignore", ".travis.yml"]
 
 [dependencies]
 
