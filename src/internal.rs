@@ -139,7 +139,6 @@ pub fn wigner_3jm_raw(
         }
         s
     };
-    println!("{}, {}", z2, z1);
     SignedSqrtRational::new(z2, z1)
 }
 
@@ -199,7 +198,6 @@ pub fn wigner_9j_raw(
         triangular_factor(tja, tjd, tjg) *
         triangular_factor(tjb, tje, tjh) *
         triangular_factor(tjc, tjf, tji);
-    println!("<<{} {} {} {}>>", tkmin, tkmax, z2, z1);
     SignedSqrtRational::new(z2, z1)
 }
 

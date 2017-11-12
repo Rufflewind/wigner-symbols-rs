@@ -1,6 +1,6 @@
 [package]
 name = "wigner-symbols"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Phil Ruffwind <rf@rufflewind.com>"]
 description = "Exact Clebsch–Gordan coefficients and Wigner 3-jm, 6-j, and 9-j symbols for coupling and recoupling angular momenta in quantum mechanics"
 documentation = "https://docs.rs/wigner-symbols"
