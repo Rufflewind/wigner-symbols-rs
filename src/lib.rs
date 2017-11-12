@@ -5,6 +5,7 @@ extern crate rug;
 pub mod internal;
 
 use std::cmp::Ordering;
+use std::ops::Mul;
 use rug::{Integer, Rational};
 use rug::ops::Pow;
 use internal::*;
@@ -27,7 +28,12 @@ impl SignedSqrtRational {
     pub fn new(c: Integer, r: Rational) -> Self {
         let sign = Rational::from(ordering_to_i32(c.sign()));
         let radical = Rational::from(c.pow(2)) * r;
-        SignedSqrtRational(sign * radical)
+        Self::from_signed_sq(sign * radical)
+    }
+
+    #[inline]
+    pub fn from_signed_sq(r: Rational) -> Self {
+        SignedSqrtRational(r)
     }
 
     /// Equivalent to `self.cmp(&Self::zero())`.
@@ -47,6 +53,41 @@ impl SignedSqrtRational {
     #[inline]
     pub fn signed_sq(self) -> Rational {
         self.0
+    }
+}
+
+impl Mul<SignedSqrtRational> for SignedSqrtRational {
+    type Output = Self;
+    fn mul(self, other: Self) -> Self::Output {
+        Self::from_signed_sq(self.signed_sq() * other.signed_sq())
+    }
+}
+
+impl Mul<i32> for SignedSqrtRational {
+    type Output = Self;
+    fn mul(self, other: i32) -> Self::Output {
+        self * Self::from(other)
+    }
+}
+
+impl Mul<SignedSqrtRational> for i32 {
+    type Output = SignedSqrtRational;
+    fn mul(self, other: SignedSqrtRational) -> Self::Output {
+        SignedSqrtRational::from(self) * other
+    }
+}
+
+impl From<i32> for SignedSqrtRational {
+    #[inline]
+    fn from(s: i32) -> Self {
+        (s as i64).into()
+    }
+}
+
+impl From<i64> for SignedSqrtRational {
+    #[inline]
+    fn from(s: i64) -> Self {
+        Self::new(s.into(), 1.into())
     }
 }
 
