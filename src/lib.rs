@@ -1,39 +1,36 @@
-#[cfg(test)]
-extern crate md5;
 extern crate rug;
 
 pub mod internal;
+pub mod regge;
 
 use std::cmp::Ordering;
 use std::ops::Mul;
 use rug::{Integer, Rational};
 use rug::ops::Pow;
-use internal::*;
 
-/// Represents a mathematical expression of the form `s √(n / d)` where
+/// Signed square root of a rational number
+///
+/// This represents a mathematical expression of the form `s √(n / d)` where
 ///
 /// - `s` is a sign (`-1`, `0`, or `+1`),
 /// - `n` is a nonnegative numerator, and
 /// - `d` is a positive denominator.
 ///
+/// Internally, it is represented by the rational number `s × n / d`.
+///
 /// This can be converted to a floating-point number via `f64::from(…)`.
 ///
 /// Defaults to zero.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct SignedSqrtRational(Rational);
+pub struct SignedSqrt(pub Rational);
 
-impl SignedSqrtRational {
-    /// Construct a `SignedSqrtRational` equal to `c √r`.
+impl SignedSqrt {
+    /// Construct a `SignedSqrt` equal to `c √r`.
     #[inline]
     pub fn new(c: Integer, r: Rational) -> Self {
-        let sign = Rational::from(ordering_to_i32(c.sign()));
+        let sign = Rational::from(internal::ordering_to_i32(c.sign()));
         let radical = Rational::from(c.pow(2)) * r;
-        Self::from_signed_sq(sign * radical)
-    }
-
-    #[inline]
-    pub fn from_signed_sq(r: Rational) -> Self {
-        SignedSqrtRational(r)
+        SignedSqrt(sign * radical)
     }
 
     /// Equivalent to `self.cmp(&Self::zero())`.
@@ -42,13 +39,13 @@ impl SignedSqrtRational {
         self.0.sign()
     }
 
-    /// Returns the squared value of the expression.
+    /// Returns the square of the expression.
     #[inline]
     pub fn sq(self) -> Rational {
         self.signed_sq().abs()
     }
 
-    /// Returns the squared value of the expression, with the sign adjusted to
+    /// Returns the square of the expression, but with the sign adjusted to
     /// match the sign of the original expression.
     #[inline]
     pub fn signed_sq(self) -> Rational {
@@ -56,152 +53,180 @@ impl SignedSqrtRational {
     }
 }
 
-impl Mul<SignedSqrtRational> for SignedSqrtRational {
+impl Mul<SignedSqrt> for SignedSqrt {
     type Output = Self;
     fn mul(self, other: Self) -> Self::Output {
-        Self::from_signed_sq(self.signed_sq() * other.signed_sq())
+        SignedSqrt(self.signed_sq() * other.signed_sq())
     }
 }
 
-impl Mul<i32> for SignedSqrtRational {
+impl Mul<i32> for SignedSqrt {
     type Output = Self;
     fn mul(self, other: i32) -> Self::Output {
         self * Self::from(other)
     }
 }
 
-impl Mul<SignedSqrtRational> for i32 {
-    type Output = SignedSqrtRational;
-    fn mul(self, other: SignedSqrtRational) -> Self::Output {
-        SignedSqrtRational::from(self) * other
+impl Mul<SignedSqrt> for i32 {
+    type Output = SignedSqrt;
+    fn mul(self, other: SignedSqrt) -> Self::Output {
+        SignedSqrt::from(self) * other
     }
 }
 
-impl From<i32> for SignedSqrtRational {
+impl From<i32> for SignedSqrt {
     #[inline]
     fn from(s: i32) -> Self {
         (s as i64).into()
     }
 }
 
-impl From<i64> for SignedSqrtRational {
+impl From<i64> for SignedSqrt {
     #[inline]
     fn from(s: i64) -> Self {
         Self::new(s.into(), 1.into())
     }
 }
 
-impl From<SignedSqrtRational> for f32 {
+impl From<SignedSqrt> for f32 {
     #[inline]
-    fn from(s: SignedSqrtRational) -> Self {
-        let sign = ordering_to_i32(s.sign()) as f32;
+    fn from(s: SignedSqrt) -> Self {
+        let sign = internal::ordering_to_i32(s.sign()) as f32;
         let radical = s.sq().to_f32().sqrt();
         sign * radical
     }
 }
 
-impl From<SignedSqrtRational> for f64 {
+impl From<SignedSqrt> for f64 {
     #[inline]
-    fn from(s: SignedSqrtRational) -> Self {
-        let sign = ordering_to_i32(s.sign()) as f64;
+    fn from(s: SignedSqrt) -> Self {
+        let sign = internal::ordering_to_i32(s.sign()) as f64;
         let radical = s.sq().to_f64().sqrt();
         sign * radical
     }
 }
 
-/// Calculate Clebsch-Gordan coefficients.
+/// Clebsch-Gordan coefficient
 ///
 /// ```text
 /// ⟨j1 j2 m1 m2|j1 j2 j12 m12⟩
 /// ```
-pub fn clebsch_gordan(
-    tj1: i32,
-    tm1: i32,
-    tj2: i32,
-    tm2: i32,
-    tj12: i32,
-    tm12: i32,
-) -> SignedSqrtRational
-{
-    let SignedSqrtRational(z) = wigner_3jm_raw_c(tj1, tm1, tj2, tm2, tj12, -tm12);
-    SignedSqrtRational(z * Rational::from(tj12 + 1))
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct ClebschGordan {
+    pub tj1: i32,
+    pub tm1: i32,
+    pub tj2: i32,
+    pub tm2: i32,
+    pub tj12: i32,
+    pub tm12: i32,
 }
 
-/// Calculates Wigner 3-jm symbols.
+impl From<Wigner3jm> for ClebschGordan {
+    fn from(this: Wigner3jm) -> Self {
+        let Wigner3jm { tj1, tm1, tj2, tm2, tj3, tm3 } = this;
+        Self { tj1, tm1, tj2, tm2, tj12: tj3, tm12: -tm3 }
+    }
+}
+
+impl ClebschGordan {
+    pub fn value(self) -> SignedSqrt {
+        SignedSqrt((self.tj12 + 1).into())
+            * internal::wigner_3jm_raw_c(self.into())
+    }
+}
+
+/// Wigner 3-jm symbol
 ///
 /// ```text
 /// ⎛j1 j2 j3⎞
 /// ⎝m1 m2 m3⎠
 /// ```
-pub fn wigner_3jm(
-    tj1: i32,
-    tm1: i32,
-    tj2: i32,
-    tm2: i32,
-    tj3: i32,
-    tm3: i32,
-) -> SignedSqrtRational
-{
-    let sign = Rational::from(phase((tj1 - tj2 - tm3) / 2));
-    let SignedSqrtRational(radical) =
-        wigner_3jm_raw_c (tj1, tm1, tj2, tm2, tj3, tm3);
-    SignedSqrtRational(sign * radical)
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct Wigner3jm {
+    pub tj1: i32,
+    pub tm1: i32,
+    pub tj2: i32,
+    pub tm2: i32,
+    pub tj3: i32,
+    pub tm3: i32,
 }
 
-/// Calculates Wigner 6-j symbols.
+impl From<ClebschGordan> for Wigner3jm {
+    fn from(this: ClebschGordan) -> Self {
+        let ClebschGordan { tj1, tm1, tj2, tm2, tj12, tm12 } = this;
+        Self { tj1, tm1, tj2, tm2, tj3: tj12, tm3: -tm12 }
+    }
+}
+
+impl Wigner3jm {
+    pub fn value(self) -> SignedSqrt {
+        internal::phase((self.tj1 - self.tj2 - self.tm3) / 2)
+            * internal::wigner_3jm_raw_c(self)
+    }
+}
+
+/// Wigner 6-j symbol
 ///
 /// ```text
 /// ⎧j1 j2 j3⎫
 /// ⎩j4 j5 j6⎭
 /// ```
-pub fn wigner_6j(
-    tj1: i32,
-    tj2: i32,
-    tj3: i32,
-    tj4: i32,
-    tj5: i32,
-    tj6: i32,
-) -> SignedSqrtRational
-{
-    if triangle_condition(tj1, tj2, tj3) &&
-        triangle_condition(tj1, tj5, tj6) &&
-        triangle_condition(tj4, tj2, tj6) &&
-        triangle_condition(tj4, tj5, tj3)
-    {
-        wigner_6j_raw(tj1, tj2, tj3, tj4, tj5, tj6)
-    } else {
-        Default::default()
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct Wigner6j {
+    pub tj1: i32,
+    pub tj2: i32,
+    pub tj3: i32,
+    pub tj4: i32,
+    pub tj5: i32,
+    pub tj6: i32,
+}
+
+impl Wigner6j {
+    pub fn value(self) -> SignedSqrt {
+        if internal::triangle_condition(self.tj1, self.tj2, self.tj3) &&
+            internal::triangle_condition(self.tj1, self.tj5, self.tj6) &&
+            internal::triangle_condition(self.tj4, self.tj2, self.tj6) &&
+            internal::triangle_condition(self.tj4, self.tj5, self.tj3)
+        {
+            internal::wigner_6j_raw(self)
+        } else {
+            Default::default()
+        }
     }
 }
 
-/// Calculates Wigner 9-j symbols.
+/// Wigner 9-j symbol
 ///
 /// ```text
 /// ⎧ja jb jc⎫
 /// ⎨jd je jf⎬
 /// ⎩jg jh ji⎭
 /// ```
-pub fn wigner_9j(
-    tja: i32,
-    tjb: i32,
-    tjc: i32,
-    tjd: i32,
-    tje: i32,
-    tjf: i32,
-    tjg: i32,
-    tjh: i32,
-    tji: i32,
-) -> SignedSqrtRational
-{
-    if triangle_condition(tja, tjb, tjc) &&
-        triangle_condition(tjd, tje, tjf) &&
-        triangle_condition(tjg, tjh, tji) &&
-        triangle_condition(tja, tjd, tjg) &&
-        triangle_condition(tjb, tje, tjh) &&
-        triangle_condition(tjc, tjf, tji)
-    {
-        wigner_9j_raw(tja, tjb, tjc, tjd, tje, tjf, tjg, tjh, tji)
-    } else {
-        Default::default()
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct Wigner9j {
+    pub tj1: i32,
+    pub tj2: i32,
+    pub tj3: i32,
+    pub tj4: i32,
+    pub tj5: i32,
+    pub tj6: i32,
+    pub tj7: i32,
+    pub tj8: i32,
+    pub tj9: i32,
+}
+
+impl Wigner9j {
+    pub fn value(self) -> SignedSqrt {
+        if internal::triangle_condition(self.tj1, self.tj2, self.tj3) &&
+            internal::triangle_condition(self.tj4, self.tj5, self.tj6) &&
+            internal::triangle_condition(self.tj7, self.tj8, self.tj9) &&
+            internal::triangle_condition(self.tj1, self.tj4, self.tj7) &&
+            internal::triangle_condition(self.tj2, self.tj5, self.tj8) &&
+            internal::triangle_condition(self.tj3, self.tj6, self.tj9)
+        {
+            internal::wigner_9j_raw(self)
+        } else {
+            Default::default()
+        }
     }
 }

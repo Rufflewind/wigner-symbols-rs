@@ -3,7 +3,28 @@
 use std::cmp::Ordering;
 use std::ops::Range;
 use rug::{Integer, Rational};
-use super::SignedSqrtRational;
+use super::{SignedSqrt, Wigner3jm, Wigner6j, Wigner9j};
+
+#[inline]
+pub fn sort2<T: Ord>(a: T, b: T) -> (T, T) {
+    if b < a {
+        (b, a)
+    } else {
+        (a, b)
+    }
+}
+
+#[inline]
+pub fn sort3<T: Ord>(a: T, b: T, c: T) -> (T, T, T) {
+    let (a, b) = sort2(a, b);
+    if c < a {
+        (c, a, b)
+    } else if c < b {
+        (a, c, b)
+    } else {
+        (a, b, c)
+    }
+}
 
 /// Reinterpret ordering as a sign:
 ///
@@ -62,19 +83,9 @@ pub fn triangle_condition(tj1: i32, tj2: i32, tj3: i32) -> bool {
 }
 
 /// Calculate the Wigner 3-jm symbol times `(−1) ^ (j1 − j2 − m3)`.
-#[inline]
-pub fn wigner_3jm_raw_c(
-    tj1: i32,
-    tm1: i32,
-    tj2: i32,
-    tm2: i32,
-    tj3: i32,
-    tm3: i32,
-) -> SignedSqrtRational
-{
-    let jm1 = (tj1 + tm1) / 2;
+pub fn wigner_3jm_raw_c(this: Wigner3jm) -> SignedSqrt {
+    let Wigner3jm { tj1, tm1, tj2, tm2, tj3, tm3 } = this;
     let jmr1 = (tj1 + tm1) % 2;
-    let jm2 = (tj2 + tm2) / 2;
     let jmr2 = (tj2 + tm2) % 2;
     if
         tm1 + tm2 + tm3 == 0 &&
@@ -85,7 +96,7 @@ pub fn wigner_3jm_raw_c(
         jmr2 == 0 &&
         triangle_condition(tj1, tj2, tj3)
     {
-        wigner_3jm_raw(jm1, jm2, tj1, tm1, tj2, tm2, tj3, tm3)
+        wigner_3jm_raw(this)
     } else {
         Default::default()
     }
@@ -93,26 +104,14 @@ pub fn wigner_3jm_raw_c(
 
 /// Calculate the Wigner 3-jm symbol times `(−1) ^ (j1 − j2 − m3)`.
 /// The selection rules are not checked.
-///
-/// ```text
-/// j1 + m1, j2 + m2,
-/// tj1, tm1, tj2, tm2, tj3, tm3
-/// ```
-pub fn wigner_3jm_raw(
-    jm1: i32,
-    jm2: i32,
-    tj1: i32,
-    tm1: i32,
-    tj2: i32,
-    tm2: i32,
-    tj3: i32,
-    tm3: i32,
-) -> SignedSqrtRational
-{
+pub fn wigner_3jm_raw(this: Wigner3jm) -> SignedSqrt {
+    let Wigner3jm { tj1, tm1, tj2, tm2, tj3, tm3 } = this;
     let jjj1 = (tj1 - tj2 + tj3) / 2;
     let jjj2 = (tj2 - tj3 + tj1) / 2;
     let jjj3 = (tj3 - tj1 + tj2) / 2;
     let jjj  = (tj1 + tj2 + tj3) / 2 + 1;
+    let jm1 = (tj1 + tm1) / 2;
+    let jm2 = (tj2 + tm2) / 2;
     let jsm1 = (tj1 - tm1) / 2;
     let jm3  = (tj3 + tm3) / 2;
     let kmin = sort3(0, tj1 - tj3 + tm2, tj2 - tj3 - tm1).2 / 2;
@@ -139,87 +138,49 @@ pub fn wigner_3jm_raw(
         }
         s
     };
-    SignedSqrtRational::new(z2, z1)
+    SignedSqrt::new(z2, z1)
 }
 
 /// Calculate the Wigner 6-j symbol.  The selection rules are not checked.
-pub fn wigner_6j_raw(
-    tja: i32,
-    tjb: i32,
-    tjc: i32,
-    tjd: i32,
-    tje: i32,
-    tjf: i32,
-) -> SignedSqrtRational
-{
+pub fn wigner_6j_raw(this: Wigner6j) -> SignedSqrt {
+    let Wigner6j { tj1, tj2, tj3, tj4, tj5, tj6 } = this;
     let z1 =
-        triangular_factor(tja, tje, tjf)
-        * triangular_factor(tjd, tjb, tjf)
-        * triangular_factor(tjd, tje, tjc)
-        / triangular_factor(tja, tjb, tjc);
-    let z2 = tetrahedral_sum(tja, tje, tjf, tjd, tjb, tjc);
-    SignedSqrtRational::new(z2, z1)
+        triangular_factor(tj1, tj5, tj6)
+        * triangular_factor(tj4, tj2, tj6)
+        * triangular_factor(tj4, tj5, tj3)
+        / triangular_factor(tj1, tj2, tj3);
+    let z2 = tetrahedral_sum(tj1, tj5, tj6, tj4, tj2, tj3);
+    SignedSqrt::new(z2, z1)
 }
 
 /// Calculate the Wigner 9-j symbol.  The selection rules are not checked.
-pub fn wigner_9j_raw(
-    tja: i32,
-    tjb: i32,
-    tjc: i32,
-    tjd: i32,
-    tje: i32,
-    tjf: i32,
-    tjg: i32,
-    tjh: i32,
-    tji: i32,
-) -> SignedSqrtRational
-{
+pub fn wigner_9j_raw(this: Wigner9j) -> SignedSqrt {
+    let Wigner9j { tj1, tj2, tj3, tj4, tj5, tj6, tj7, tj8, tj9 } = this;
     let tkmin = sort3(
-        (tjh - tjd).abs(),
-        (tjb - tjf).abs(),
-        (tja - tji).abs(),
+        (tj8 - tj4).abs(),
+        (tj2 - tj6).abs(),
+        (tj1 - tj9).abs(),
     ).2;
     let tkmax = sort3(
-        tjh + tjd,
-        tjb + tjf,
-        tja + tji,
+        tj8 + tj4,
+        tj2 + tj6,
+        tj1 + tj9,
     ).0;
     let z2 = (0 .. (tkmax - tkmin) / 2 + 1).map(|i| {
         let tk = tkmin + i * 2;
         Integer::from(phase(tk) * (tk + 1))
-            * tetrahedral_sum(tja, tjb, tjc, tjf, tji, tk)
-            * tetrahedral_sum(tjf, tjd, tje, tjh, tjb, tk)
-            * tetrahedral_sum(tjh, tji, tjg, tja, tjd, tk)
+            * tetrahedral_sum(tj1, tj2, tj3, tj6, tj9, tk)
+            * tetrahedral_sum(tj6, tj4, tj5, tj8, tj2, tk)
+            * tetrahedral_sum(tj8, tj9, tj7, tj1, tj4, tk)
     }).sum();
     let z1 =
-        triangular_factor(tja, tjb, tjc) *
-        triangular_factor(tjd, tje, tjf) *
-        triangular_factor(tjg, tjh, tji) *
-        triangular_factor(tja, tjd, tjg) *
-        triangular_factor(tjb, tje, tjh) *
-        triangular_factor(tjc, tjf, tji);
-    SignedSqrtRational::new(z2, z1)
-}
-
-#[inline]
-pub fn sort2<T: Ord>(a: T, b: T) -> (T, T) {
-    if b < a {
-        (b, a)
-    } else {
-        (a, b)
-    }
-}
-
-#[inline]
-pub fn sort3<T: Ord>(a: T, b: T, c: T) -> (T, T, T) {
-    let (a, b) = sort2(a, b);
-    if c < a {
-        (c, a, b)
-    } else if c < b {
-        (a, c, b)
-    } else {
-        (a, b, c)
-    }
+        triangular_factor(tj1, tj2, tj3) *
+        triangular_factor(tj4, tj5, tj6) *
+        triangular_factor(tj7, tj8, tj9) *
+        triangular_factor(tj1, tj4, tj7) *
+        triangular_factor(tj2, tj5, tj8) *
+        triangular_factor(tj3, tj6, tj9);
+    SignedSqrt::new(z2, z1)
 }
 
 /// Calculate the triangular factor:
@@ -289,6 +250,7 @@ pub fn tetrahedral_sum(
     }).sum()
 }
 
+#[inline]
 pub fn intersect_ranges(a: Range<i32>, b: Range<i32>) -> Range<i32> {
     a.start.max(b.start) .. a.end.min(b.end)
 }
@@ -350,7 +312,7 @@ pub fn get_tms(tj: i32) -> Step<Range<i32>> {
 /// selection rules up to a maximum of `j_max`.
 pub fn get_3tjms(
     tj_max: i32,
-    callback: &mut FnMut(i32, i32, i32, i32, i32, i32),
+    callback: &mut FnMut(Wigner3jm),
 ) {
     for tj1 in 0 .. tj_max + 1 {
     for tj2 in 0 .. tj_max + 1 {
@@ -361,7 +323,7 @@ pub fn get_3tjms(
         if tm3.abs() > tj3 {
             continue;
         }
-        callback(tj1, tm1, tj2, tm2, tj3, tm3);
+        callback(Wigner3jm { tj1, tm1, tj2, tm2, tj3, tm3 });
     }
     }
     }
@@ -373,15 +335,15 @@ pub fn get_3tjms(
 /// selection rules up to a maximum of `j_max`.
 pub fn get_6tjs(
     tj_max: i32,
-    callback: &mut FnMut(i32, i32, i32, i32, i32, i32),
+    callback: &mut FnMut(Wigner6j),
 ) {
-    for tja in 0 .. tj_max + 1 {
-    for tjb in 0 .. tj_max + 1 {
-    for tjc in get_triangular_tjs(tj_max, tja, tjb) {
-    for tjd in 0 .. tj_max + 1 {
-    for tje in get_triangular_tjs(tj_max, tjd, tjc) {
-    for tjf in get_bitriangular_tjs(tj_max, tja, tje, tjd, tjb) {
-        callback(tja, tjb, tjc, tjd, tje, tjf);
+    for tj1 in 0 .. tj_max + 1 {
+    for tj2 in 0 .. tj_max + 1 {
+    for tj3 in get_triangular_tjs(tj_max, tj1, tj2) {
+    for tj4 in 0 .. tj_max + 1 {
+    for tj5 in get_triangular_tjs(tj_max, tj4, tj3) {
+    for tj6 in get_bitriangular_tjs(tj_max, tj1, tj5, tj4, tj2) {
+        callback(Wigner6j { tj1, tj2, tj3, tj4, tj5, tj6 });
     }
     }
     }
@@ -394,18 +356,18 @@ pub fn get_6tjs(
 /// selection rules up to a maximum of `j_max`.
 pub fn get_9tjs(
     tj_max: i32,
-    callback: &mut FnMut(i32, i32, i32, i32, i32, i32, i32, i32, i32),
+    callback: &mut FnMut(Wigner9j),
 ) {
-    for tja in 0 .. tj_max + 1 {
-    for tjb in 0 .. tj_max + 1 {
-    for tjc in get_triangular_tjs(tj_max, tja, tjb) {
-    for tjd in 0 .. tj_max + 1 {
-    for tje in 0 .. tj_max + 1 {
-    for tjf in get_triangular_tjs(tj_max, tjd, tje) {
-    for tjg in get_triangular_tjs(tj_max, tja, tjd) {
-    for tjh in get_triangular_tjs(tj_max, tjb, tje) {
-    for tji in get_bitriangular_tjs(tj_max, tjg, tjh, tjc, tjf) {
-        callback(tja, tjb, tjc, tjd, tje, tjf, tjg, tjh, tji);
+    for tj1 in 0 .. tj_max + 1 {
+    for tj2 in 0 .. tj_max + 1 {
+    for tj3 in get_triangular_tjs(tj_max, tj1, tj2) {
+    for tj4 in 0 .. tj_max + 1 {
+    for tj5 in 0 .. tj_max + 1 {
+    for tj6 in get_triangular_tjs(tj_max, tj4, tj5) {
+    for tj7 in get_triangular_tjs(tj_max, tj1, tj4) {
+    for tj8 in get_triangular_tjs(tj_max, tj2, tj5) {
+    for tj9 in get_bitriangular_tjs(tj_max, tj7, tj8, tj3, tj6) {
+        callback(Wigner9j { tj1, tj2, tj3, tj4, tj5, tj6, tj7, tj8, tj9 });
     }
     }
     }
@@ -414,129 +376,5 @@ pub fn get_9tjs(
     }
     }
     }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use std::fmt;
-    use std::io::Write;
-    use md5;
-    use super::*;
-    use super::super::*;
-
-    const CG_HASHES: &[(i32, &str)] = &[
-        (5, "e74c501299b456a6cb29e4f5714e9061"), // 681
-        (10, "b6d0770101f4ebdaa9a55d94f07b001f"), // 11487
-        (15, "9192023f26dae0eebcce11afa7372eb6"), // 69272
-        (20, "75ef56391b61e1bb2336e36ac7834216"), // 259523
-        (25, "5901128892a264b73b5479b70b331fd0"), // 737113
-        (30, "75ef56391b61e1bb2336e36ac7834216"), // 1747984
-        (40, "2f9b936ea977249c1fea8a22d190a4cf"), // 6931995
-    ];
-
-    const W6J_HASHES: &[(i32, &str)] = &[
-        (5, "26c24e568fc96f1732ebb3130a46f22a"), // 1479
-        (10, "f892f4b466e0558179ca870941d0a456"), // 42393
-        (15, "f50b0163194cef1699727b7064760ec0"), // 363196
-        (20, "e1b5dad0f1469cc54b6139533f982815"), // 1766270
-        (25, "f326bf6e12a94120d2f46582e95e92f8"), // 6171698
-    ];
-
-    const W9J_HASHES: &[(i32, &str)] = &[
-        (3, "4005ef20e2ed8c789917dce99d027bc4"), // 1616
-        (4, "92cfc13320e7fd6a34b3970ebef58e06"), // 9060
-        (5, "d596fa3960aafae148754b6f3274507d"), // 38031
-        (7, "7b338708ef3aa4ba0a4f5bd8c8b4e6aa"), // 401899
-        (10, "479c0a020eaceff5539e2dda2200c1ab"), // 5898846
-    ];
-
-    fn lookup<'a, K: Eq, V>(table: &'a [(K, V)], key: &K) -> Option<&'a V> {
-        table.iter().find(|&&(ref k, _)| k == key).map(|x| &x.1)
-    }
-
-    struct RenderValue<'a>(&'a SignedSqrtRational);
-
-    impl<'a> fmt::Display for RenderValue<'a> {
-        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-            let r = self.0.clone().signed_sq();
-            write!(f, "{}/{}", r.numer(), r.denom())
-        }
-    }
-
-    #[test]
-    fn test_clebsch_gordan_and_wigner_3jm() {
-        let tj_max = 25;
-        let mut f = md5::Context::new();
-        get_3tjms(tj_max, &mut |tj1, tm1, tj2, tm2, tj3, tm3| {
-            let c = clebsch_gordan(tj1, tm1, tj2, tm2, tj3, -tm3);
-            let w = wigner_3jm(tj1, tm1, tj2, tm2, tj3, tm3);
-            assert_eq!(
-                c.clone().signed_sq(),
-                Rational::from((tj3 + 1) * phase((tj1 - tj2 - tm3) / 2))
-                    * w.signed_sq()
-            );
-            write!(
-                f,
-                "{}\t{}\t{}\t{}\t{}\t{}\t{}\n",
-                tj1, tm1, tj2, tm2, tj3, -tm3,
-                RenderValue(&c),
-            ).unwrap();
-        });
-        assert_eq!(&format!("{:x}", f.compute()),
-                   *lookup(CG_HASHES, &tj_max).expect("hash not available"));
-    }
-
-    #[test]
-    fn test_wigner_6j() {
-        let tj_max = 15;
-        let mut f = md5::Context::new();
-        get_6tjs(tj_max, &mut |tj1, tj2, tj3, tj4, tj5, tj6| {
-            let w = wigner_6j(tj1, tj2, tj3, tj4, tj5, tj6);
-            write!(
-                f,
-                "{}\t{}\t{}\t{}\t{}\t{}\t{}\n",
-                tj1, tj2, tj3, tj4, tj5, tj6,
-                RenderValue(&w),
-            ).unwrap();
-        });
-        assert_eq!(&format!("{:x}", f.compute()),
-                   *lookup(W6J_HASHES, &tj_max).expect("hash not available"));
-    }
-
-    #[test]
-    fn test_wigner_9j() {
-        let tj_max = 7;
-        let mut f = md5::Context::new();
-        get_9tjs(tj_max, &mut |tj1, tj2, tj3, tj4, tj5, tj6, tj7, tj8, tj9| {
-            let w = wigner_9j(tj1, tj2, tj3, tj4, tj5, tj6, tj7, tj8, tj9);
-            write!(
-                f,
-                "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n",
-                tj1, tj2, tj3, tj4, tj5, tj6, tj7, tj8, tj9,
-                RenderValue(&w),
-            ).unwrap();
-        });
-        assert_eq!(&format!("{:x}", f.compute()),
-                   *lookup(W9J_HASHES, &tj_max).expect("hash not available"));
-    }
-
-    #[test]
-    fn test_signed_sqrt_rational() {
-        assert_eq!(f64::from(SignedSqrtRational::default()), 0.0);
-        assert_eq!(f64::from(SignedSqrtRational::new(
-            10.into(),
-            (1, 4).into(),
-        )), 5.0);
-    }
-
-    #[test]
-    fn test_sort3() {
-        assert_eq!(sort3(1, 2, 3), (1, 2, 3));
-        assert_eq!(sort3(2, 1, 3), (1, 2, 3));
-        assert_eq!(sort3(2, 3, 1), (1, 2, 3));
-        assert_eq!(sort3(3, 2, 1), (1, 2, 3));
-        assert_eq!(sort3(3, 1, 2), (1, 2, 3));
-        assert_eq!(sort3(1, 3, 2), (1, 2, 3));
     }
 }
