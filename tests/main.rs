@@ -235,7 +235,7 @@ fn test_regge3jm() {
         let (regge, phase) = Regge3jm::from(w3jm).canonicalize();
         let canon_value = phase * value;
         assert_eq!(
-            *map.entry(regge).or_insert(canon_value.clone()),
+            *map.entry(regge).or_insert_with(||canon_value.clone()),
             canon_value.clone()
         );
         vec[regge.index()] = (regge, canon_value);
@@ -255,7 +255,7 @@ fn test_regge6j() {
         let value = w6j.value();
         let regge = CanonicalRegge6j::from(w6j);
         assert_eq!(
-            *map.entry(regge).or_insert(value.clone()),
+            *map.entry(regge).or_insert_with(|| value.clone()),
             value.clone()
         );
         vec[regge.index()] = (regge, value);

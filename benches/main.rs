@@ -158,7 +158,7 @@ fn bench_regge3jm_map_25(b: &mut Bencher) {
     for &w3jm in &table {
         let value = w3jm.value();
         let (regge, phase) = Regge3jm::from(w3jm).canonicalize();
-        map.entry(regge).or_insert(f64::from(phase * value));
+        map.entry(regge).or_insert_with(|| f64::from(phase * value));
     }
 
     let mut i = 0;
@@ -205,7 +205,7 @@ fn bench_regge6j_map_25(b: &mut Bencher) {
     for &w6j in &table {
         let value = w6j.value();
         let regge = CanonicalRegge6j::from(w6j);
-        map.entry(regge).or_insert(f64::from(value));
+        map.entry(regge).or_insert_with(|| f64::from(value));
     }
 
     let mut i = 0;
