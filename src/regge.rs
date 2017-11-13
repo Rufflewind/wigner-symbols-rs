@@ -1,6 +1,6 @@
 use std::ops::{Index, IndexMut};
-use super::Wigner3jm;
-use super::internal::phase;
+use super::{Wigner3jm, Wigner6j};
+use super::internal::{phase, sort3, sort4};
 
 /// Regge square for Wigner 3-jm symbols, arranged in row-major order.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -23,17 +23,17 @@ impl IndexMut<(usize, usize)> for Regge3jm {
 
 impl From<Wigner3jm> for Regge3jm {
     #[inline]
-    fn from(this: Wigner3jm) -> Self {
+    fn from(Wigner3jm { tj1, tm1, tj2, tm2, tj3, tm3 }: Wigner3jm) -> Self {
         Regge3jm([
-            (-this.tj1 + this.tj2 + this.tj3) / 2,
-            (this.tj1 - this.tj2 + this.tj3) / 2,
-            (this.tj1 + this.tj2 - this.tj3) / 2,
-            (this.tj1 - this.tm1) / 2,
-            (this.tj2 - this.tm2) / 2,
-            (this.tj3 - this.tm3) / 2,
-            (this.tj1 + this.tm1) / 2,
-            (this.tj2 + this.tm2) / 2,
-            (this.tj3 + this.tm3) / 2,
+            (-tj1 + tj2 + tj3) / 2,
+            (tj1 - tj2 + tj3) / 2,
+            (tj1 + tj2 - tj3) / 2,
+            (tj1 - tm1) / 2,
+            (tj2 - tm2) / 2,
+            (tj3 - tm3) / 2,
+            (tj1 + tm1) / 2,
+            (tj2 + tm2) / 2,
+            (tj3 + tm3) / 2,
         ])
     }
 }
@@ -165,6 +165,71 @@ impl CanonicalRegge3jm {
     pub fn len(tj_max: i32) -> usize {
         Self {
             l: tj_max as u8 + 1,        // j_max = j_max + j_max - 0
+            .. Default::default()
+        }.index()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct CanonicalRegge6j {
+    pub e: u8,
+    pub l: u8,
+    pub x: u8,
+    pub t: u8,
+    pub b: u8,
+    pub s: u8,
+}
+
+impl From<Wigner6j> for CanonicalRegge6j {
+    #[inline]
+    fn from(Wigner6j { tj1, tj2, tj3, tj4, tj5, tj6 }: Wigner6j) -> Self {
+        // there's a typo in Rasch and Yu (2003):
+        // (3.12) should say α3 ≥ α2 ≥ α1
+        let (alpha1, alpha2, alpha3) = sort3(
+            (tj1 + tj2 + tj4 + tj5) / 2,
+            (tj1 + tj3 + tj4 + tj6) / 2,
+            (tj2 + tj3 + tj5 + tj6) / 2,
+        );
+        let (beta4, beta3, beta2, beta1) = sort4(
+            (tj1 + tj2 + tj3) / 2,
+            (tj1 + tj5 + tj6) / 2,
+            (tj2 + tj4 + tj6) / 2,
+            (tj3 + tj4 + tj5) / 2,
+        );
+        Self {
+            s: (alpha1 - beta1) as _,
+            b: (alpha1 - beta2) as _,
+            t: (alpha1 - beta3) as _,
+            x: (alpha1 - beta4) as _,
+            l: (alpha2 - beta4) as _,
+            e: (alpha3 - beta4) as _,
+        }
+    }
+}
+
+impl CanonicalRegge6j {
+    /// Index into a table ordered according to [Rasch and Yu
+    /// (2003)](https://doi.org/10.1137/S1064827503422932).
+    #[inline]
+    pub fn index(self) -> usize {
+        debug_assert!(self.e >= self.l);
+        let e = self.e as usize;
+        e * (120 + e * (274 + e * (225 + e * (85 + e * (15 + e))))) / 720
+            + CanonicalRegge3jm {
+                l: self.l,
+                x: self.x,
+                b: self.b,
+                t: self.t,
+                s: self.s,
+            }.index()
+    }
+
+    #[inline]
+    pub fn len(tj_max: i32) -> usize {
+        Self {
+            // α − β will always cancel at least two of the j's, with two j's
+            // remaining
+            e: tj_max as u8 + 1,
             .. Default::default()
         }.index()
     }

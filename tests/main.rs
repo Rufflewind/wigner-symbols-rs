@@ -1,8 +1,9 @@
 extern crate md5;
+extern crate permutohedron;
 extern crate rug;
 extern crate wigner_symbols;
 
-use std::fmt;
+use std::{cmp, fmt, hash};
 use std::collections::HashMap;
 use std::io::Write;
 use rug::Rational;
@@ -49,14 +50,105 @@ impl<'a> fmt::Display for RenderValue<'a> {
     }
 }
 
+#[derive(Clone, Copy, Debug)]
+pub struct Entry<K, V>(pub K, pub V);
+
+impl<K: PartialEq, V> PartialEq for Entry<K, V> {
+    fn eq(&self, other: &Entry<K, V>) -> bool {
+        self.0.eq(&other.0)
+    }
+}
+
+impl<K: Eq, V> Eq for Entry<K, V> {}
+
+impl<K: hash::Hash, V> hash::Hash for Entry<K, V> {
+    fn hash<H: hash::Hasher>(&self, hasher: &mut H) {
+        self.0.hash(hasher)
+    }
+}
+
+impl<K: PartialOrd, V> PartialOrd for Entry<K, V> {
+    fn partial_cmp(&self, other: &Entry<K, V>) -> Option<cmp::Ordering> {
+        self.0.partial_cmp(&other.0)
+    }
+}
+
+impl<K: Ord, V> Ord for Entry<K, V> {
+    fn cmp(&self, other: &Entry<K, V>) -> cmp::Ordering {
+        self.0.cmp(&other.0)
+    }
+}
+
+#[derive(Debug)]
+pub struct TestPermutations<T> {
+    pub slice: Vec<T>,
+    pub first: bool,
+}
+
+impl<T: Clone> TestPermutations<T> {
+    pub fn new(slice: &[T]) -> Self {
+        Self { slice: slice.to_owned(), first: true }
+    }
+}
+
+impl<T: Ord + Clone> Iterator for TestPermutations<T> {
+    type Item = Vec<Entry<T, usize>>;
+    fn next(&mut self) -> Option<Self::Item> {
+        use permutohedron::LexicalPermutation;
+        if self.first {
+            self.first = false;
+        } else if !self.slice.next_permutation() {
+            return None;
+        }
+        Some(self.slice.iter().cloned().enumerate()
+             .map(|(i, x)| Entry(x, i)).collect())
+    }
+}
+
+#[test]
+fn test_sort2() {
+    for start in &[
+        [1, 2],
+        [1, 1],
+    ] {
+        for mut xs in TestPermutations::new(start) {
+            let (x0, x1) = sort2(xs[0], xs[1]);
+            xs.sort();
+            assert_eq!(&xs, &[x0, x1]);
+        }
+    }
+}
+
 #[test]
 fn test_sort3() {
-    assert_eq!(sort3(1, 2, 3), (1, 2, 3));
-    assert_eq!(sort3(2, 1, 3), (1, 2, 3));
-    assert_eq!(sort3(2, 3, 1), (1, 2, 3));
-    assert_eq!(sort3(3, 2, 1), (1, 2, 3));
-    assert_eq!(sort3(3, 1, 2), (1, 2, 3));
-    assert_eq!(sort3(1, 3, 2), (1, 2, 3));
+    for start in &[
+        [1, 2, 3],
+        [1, 1, 2],
+        [1, 1, 1],
+    ] {
+        for mut xs in TestPermutations::new(start) {
+            let (x0, x1, x2) = sort3(xs[0], xs[1], xs[2]);
+            xs.sort();
+            assert_eq!(&xs, &[x0, x1, x2]);
+        }
+    }
+}
+
+#[test]
+fn test_sort4() {
+    for start in &[
+        [1, 2, 3, 4],
+        [1, 1, 2, 3],
+        [1, 1, 2, 2],
+        [1, 1, 1, 2],
+        [1, 1, 1, 1],
+    ] {
+        for mut xs in TestPermutations::new(start) {
+            let (x0, x1, x2, x3) = sort4(xs[0], xs[1], xs[2], xs[3]);
+            xs.sort();
+            assert_eq!(&xs, &[x0, x1, x2, x3]);
+        }
+    }
 }
 
 #[test]
@@ -137,7 +229,7 @@ fn test_regge3jm() {
     let tj_max = 25;
     let mut map = HashMap::new();
     let n = CanonicalRegge3jm::len(tj_max);
-    let mut table = vec![Default::default(); n];
+    let mut vec = vec![Default::default(); n];
     internal::get_3tjms(tj_max, &mut |w3jm| {
         let value = w3jm.value();
         let (regge, phase) = Regge3jm::from(w3jm).canonicalize();
@@ -146,9 +238,29 @@ fn test_regge3jm() {
             *map.entry(regge).or_insert(canon_value.clone()),
             canon_value.clone()
         );
-        table[regge.index()] = (regge, canon_value);
+        vec[regge.index()] = (regge, canon_value);
     });
-    for (regge, canon_value) in map {
-        assert_eq!(table[regge.index()], (regge, canon_value));
+    for (regge, value) in map {
+        assert_eq!(vec[regge.index()], (regge, value));
+    }
+}
+
+#[test]
+fn test_regge6j() {
+    let tj_max = 15;
+    let mut map = HashMap::new();
+    let n = CanonicalRegge6j::len(tj_max);
+    let mut vec = vec![Default::default(); n];
+    internal::get_6tjs(tj_max, &mut |w6j| {
+        let value = w6j.value();
+        let regge = CanonicalRegge6j::from(w6j);
+        assert_eq!(
+            *map.entry(regge).or_insert(value.clone()),
+            value.clone()
+        );
+        vec[regge.index()] = (regge, value);
+    });
+    for (regge, value) in &map {
+        assert_eq!(vec[regge.index()], (*regge, value.clone()));
     }
 }

@@ -26,6 +26,29 @@ pub fn sort3<T: Ord>(a: T, b: T, c: T) -> (T, T, T) {
     }
 }
 
+#[inline]
+pub fn sort4<T: Ord>(a: T, b: T, c: T, d: T) -> (T, T, T, T) {
+    let (a, b) = sort2(a, b);
+    let (c, d) = sort2(c, d);
+    if c < a {
+        if d < a {
+            (c, d, a, b)
+        } else if d < b {
+            (c, a, d, b)
+        } else {
+            (c, a, b, d)
+        }
+    } else if c < b {
+        if d < b {
+            (a, c, d, b)
+        } else {
+            (a, c, b, d)
+        }
+    } else {
+        (a, b, c, d)
+    }
+}
+
 /// Reinterpret ordering as a sign:
 ///
 /// ```text

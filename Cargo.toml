@@ -21,4 +21,5 @@ features = ["integer", "rational"]
 [dev-dependencies]
 fnv = "1.0.6"
 md5 = "0.3.6"
+permutohedron = "0.2.4"
 rand = "0.3.18"
