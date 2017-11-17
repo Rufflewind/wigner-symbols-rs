@@ -33,7 +33,7 @@ impl SignedSqrt {
         SignedSqrt(sign * radical)
     }
 
-    /// Equivalent to `self.cmp(&Self::zero())`.
+    /// Equivalent to `self.cmp(&Self::from(0))`.
     #[inline]
     pub fn sign(&self) -> Ordering {
         self.0.sign()
