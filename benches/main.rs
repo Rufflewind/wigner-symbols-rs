@@ -165,7 +165,7 @@ fn bench_regge3jm_map_25(b: &mut Bencher) {
     b.iter(|| {
         let w3jm = table[i % table.len()];
         let (regge, phase) = Regge3jm::from(w3jm).canonicalize();
-        test::black_box(phase as f64 * map.get(&regge).unwrap());
+        test::black_box(f64::from(phase) * map[&regge]);
         i += 1;
     });
 }
@@ -190,7 +190,7 @@ fn bench_regge3jm_vec_25(b: &mut Bencher) {
     b.iter(|| {
         let w3jm = table[i % table.len()];
         let (regge, phase) = Regge3jm::from(w3jm).canonicalize();
-        test::black_box(phase as f64 * vec[regge.index()]);
+        test::black_box(f64::from(phase) * vec[regge.index()]);
         i += 1;
     });
 }
@@ -212,7 +212,7 @@ fn bench_regge6j_map_25(b: &mut Bencher) {
     b.iter(|| {
         let w6j = table[i % table.len()];
         let regge = CanonicalRegge6j::from(w6j);
-        test::black_box(map.get(&regge).unwrap());
+        test::black_box(map[&regge]);
         i += 1;
     });
 }

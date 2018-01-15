@@ -28,7 +28,7 @@ impl SignedSqrt {
     /// Construct a `SignedSqrt` equal to `c √r`.
     #[inline]
     pub fn new(c: Integer, r: Rational) -> Self {
-        let sign = Rational::from(internal::ordering_to_i32(c.sign()));
+        let sign = Rational::from(internal::ordering_to_i32(c.cmp0()));
         let radical = Rational::from(c.pow(2)) * r;
         SignedSqrt(sign * radical)
     }
@@ -36,7 +36,7 @@ impl SignedSqrt {
     /// Equivalent to `self.cmp(&Self::from(0))`.
     #[inline]
     pub fn sign(&self) -> Ordering {
-        self.0.sign()
+        self.0.cmp0()
     }
 
     /// Returns the square of the expression.
@@ -77,7 +77,7 @@ impl Mul<SignedSqrt> for i32 {
 impl From<i32> for SignedSqrt {
     #[inline]
     fn from(s: i32) -> Self {
-        (s as i64).into()
+        i64::from(s).into()
     }
 }
 
@@ -100,7 +100,7 @@ impl From<SignedSqrt> for f32 {
 impl From<SignedSqrt> for f64 {
     #[inline]
     fn from(s: SignedSqrt) -> Self {
-        let sign = internal::ordering_to_i32(s.sign()) as f64;
+        let sign = f64::from(internal::ordering_to_i32(s.sign()));
         let radical = s.sq().to_f64().sqrt();
         sign * radical
     }

@@ -84,9 +84,7 @@ pub fn falling_factorial(n: i32, k: i32) -> Integer {
 /// Calculate the factorial `n!`.
 #[inline]
 pub fn factorial(n: i32) -> Integer {
-    let mut i = Integer::default();
-    i.assign_factorial(n as u32);
-    i
+    Integer::factorial(n as u32).into()
 }
 
 #[inline]
