@@ -333,7 +333,7 @@ pub fn get_tms(tj: i32) -> Step<Range<i32>> {
 /// selection rules up to a maximum of `j_max`.
 pub fn get_3tjms(
     tj_max: i32,
-    callback: &mut FnMut(Wigner3jm),
+    callback: &mut dyn FnMut(Wigner3jm),
 ) {
     for tj1 in 0 .. tj_max + 1 {
     for tj2 in 0 .. tj_max + 1 {
@@ -356,7 +356,7 @@ pub fn get_3tjms(
 /// selection rules up to a maximum of `j_max`.
 pub fn get_6tjs(
     tj_max: i32,
-    callback: &mut FnMut(Wigner6j),
+    callback: &mut dyn FnMut(Wigner6j),
 ) {
     for tj1 in 0 .. tj_max + 1 {
     for tj2 in 0 .. tj_max + 1 {
@@ -377,7 +377,7 @@ pub fn get_6tjs(
 /// selection rules up to a maximum of `j_max`.
 pub fn get_9tjs(
     tj_max: i32,
-    callback: &mut FnMut(Wigner9j),
+    callback: &mut dyn FnMut(Wigner9j),
 ) {
     for tj1 in 0 .. tj_max + 1 {
     for tj2 in 0 .. tj_max + 1 {
