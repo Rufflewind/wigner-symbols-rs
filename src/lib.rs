@@ -4,7 +4,8 @@ pub mod internal;
 pub mod regge;
 
 use std::cmp::Ordering;
-use std::ops::Mul;
+use std::iter::Sum;
+use std::ops::{Add, Mul};
 use rug::{Integer, Rational};
 use rug::ops::Pow;
 
@@ -50,6 +51,17 @@ impl SignedSqrt {
     #[inline]
     pub fn signed_sq(self) -> Rational {
         self.0
+    }
+}
+
+impl Add<SignedSqrt> for SignedSqrt {
+    type Output = Self;
+    fn add(self, other: Self) -> Self::Output {
+        SignedSqrt(
+            Rational::from_f64(
+                self.signed_sq().to_f64().sqrt() + other.signed_sq().to_f64().sqrt()
+            ).unwrap().pow(2)
+        )
     }
 }
 
@@ -103,6 +115,14 @@ impl From<SignedSqrt> for f64 {
         let sign = f64::from(internal::ordering_to_i32(s.sign()));
         let radical = s.sq().to_f64().sqrt();
         sign * radical
+    }
+}
+
+impl Sum for SignedSqrt {
+    fn sum<I>(iter: I) -> Self where I: Iterator<Item = Self> {
+        iter.fold(Self { 0: Rational::from(0) }, |acc, x| {
+            acc + x
+        })
     }
 }
 
@@ -225,6 +245,47 @@ impl Wigner9j {
             internal::triangle_condition(self.tj3, self.tj6, self.tj9)
         {
             internal::wigner_9j_raw(self)
+        } else {
+            Default::default()
+        }
+    }
+}
+
+/// symmetrized version of second type of Wigner 12-j symbol
+///
+/// ```text
+/// ⎧j1  j2  j3  j4⎫
+/// |j5  j6  j7  j8|
+/// ⎩j9 j10 j11 j12⎭
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct Wigner12jSecond {
+    pub tj1: i32,
+    pub tj2: i32,
+    pub tj3: i32,
+    pub tj4: i32,
+    pub tj5: i32,
+    pub tj6: i32,
+    pub tj7: i32,
+    pub tj8: i32,
+    pub tj9: i32,
+    pub tj10: i32,
+    pub tj11: i32,
+    pub tj12: i32,
+}
+
+impl Wigner12jSecond {
+    pub fn value(self) -> SignedSqrt {
+        if internal::triangle_condition(self.tj1, self.tj5, self.tj9) &&
+            internal::triangle_condition(self.tj1, self.tj6, self.tj11) &&
+            internal::triangle_condition(self.tj2, self.tj7, self.tj9) &&
+            internal::triangle_condition(self.tj2, self.tj8, self.tj11) &&
+            internal::triangle_condition(self.tj3, self.tj5, self.tj10) &&
+            internal::triangle_condition(self.tj3, self.tj6, self.tj12) &&
+            internal::triangle_condition(self.tj4, self.tj7, self.tj10) &&
+            internal::triangle_condition(self.tj4, self.tj8, self.tj12)
+        {
+            internal::wigner_12j_second_raw(self)
         } else {
             Default::default()
         }

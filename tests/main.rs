@@ -264,3 +264,24 @@ fn test_regge6j() {
         assert_eq!(vec[regge.index()], (*regge, value.clone()));
     }
 }
+
+#[test]
+fn test_wigner_12j_second() {
+    let w = Wigner12jSecond {
+        tj1: 1,
+        tj2: 1,
+        tj3: 1,
+        tj4: 1,
+        tj5: 0,
+        tj6: 0,
+        tj7: 0,
+        tj8: 0,
+        tj9: 1,
+        tj10: 1,
+        tj11: 1,
+        tj12: 1
+    };
+
+    println!("{}", f32::from(w.value()));
+    assert_eq!(f32::from(w.value()), 0.25);
+}

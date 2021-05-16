@@ -3,7 +3,7 @@
 use std::cmp::Ordering;
 use std::ops::Range;
 use rug::{Integer, Rational};
-use super::{SignedSqrt, Wigner3jm, Wigner6j, Wigner9j};
+use super::{SignedSqrt, Wigner3jm, Wigner6j, Wigner9j, Wigner12jSecond};
 
 #[inline]
 pub fn sort2<T: Ord>(a: T, b: T) -> (T, T) {
@@ -203,6 +203,34 @@ pub fn wigner_9j_raw(this: Wigner9j) -> SignedSqrt {
         triangular_factor(tj3, tj6, tj9);
     SignedSqrt::new(z2, z1)
 }
+
+/// Calculate the Wigner 12-j symbol of second type.  The selection rules are not checked.
+pub fn wigner_12j_second_raw(this: Wigner12jSecond) -> SignedSqrt {
+    let Wigner12jSecond { tj1, tj2, tj3, tj4, tj5, tj6, tj7, tj8, tj9, tj10, tj11, tj12 } = this;
+    let tkmin = sort4(
+        (tj1 - tj3).abs(),
+        (tj2 - tj4).abs(),
+        (tj9 - tj10).abs(),
+        (tj11 - tj12).abs(),
+    ).2;
+    let tkmax = sort4(
+        tj1 + tj3,
+        tj2 + tj4,
+        tj9 + tj10,
+        tj11 + tj12,
+    ).0;
+
+    let z: SignedSqrt = (0 .. tkmax - tkmin + 1).map(|i| {
+        let tk = tkmin + i;
+        (tk + 1)
+            * Wigner6j {tj1: tj9, tj2: tj10, tj3: tk, tj4: tj3, tj5: tj1, tj6: tj5}.value()
+            * Wigner6j {tj1: tj11, tj2: tj12, tj3: tk, tj4: tj3, tj5: tj1, tj6: tj6}.value()
+            * Wigner6j {tj1: tj9, tj2: tj10, tj3: tk, tj4: tj4, tj5: tj2, tj6: tj7}.value()
+            * Wigner6j {tj1: tj11, tj2: tj12, tj3: tk, tj4: tj4, tj5: tj2, tj6: tj8}.value()
+    }).sum();
+    phase(tj5 - tj6 - tj7 + tj8) * z
+}
+
 
 /// Calculate the triangular factor:
 ///
