@@ -37,6 +37,12 @@ const W9J_HASHES: &[(i32, &str)] = &[
     (10, "479c0a020eaceff5539e2dda2200c1ab"), // 5898846
 ];
 
+const W12J_SECOND_HASHES: &[(i32, &str)] = &[
+    (0, "1133f539027171d60d87a58f56abf094"),
+    (2, "f6c1c20b5613ba1c128783dd4d3e8ff5"),
+    (4, "f6c1c20b5613ba1c128783dd4d3e8ff5"),
+];
+
 fn lookup<'a, K: Eq, V>(table: &'a [(K, V)], key: &K) -> Option<&'a V> {
     table.iter().find(|&&(ref k, _)| k == key).map(|x| &x.1)
 }
@@ -267,21 +273,19 @@ fn test_regge6j() {
 
 #[test]
 fn test_wigner_12j_second() {
-    let w = Wigner12jSecond {
-        tj1: 1,
-        tj2: 1,
-        tj3: 1,
-        tj4: 1,
-        tj5: 0,
-        tj6: 0,
-        tj7: 0,
-        tj8: 0,
-        tj9: 1,
-        tj10: 1,
-        tj11: 1,
-        tj12: 1
-    };
-
-    println!("{}", f32::from(w.value()));
-    assert_eq!(f32::from(w.value()), 0.25);
+    let tj_max = 4;
+    let mut f = md5::Context::new();
+    get_12tjs_second(tj_max, &mut |w12j| {
+        let w = w12j.value();
+        write!(
+            f,
+            "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n",
+            w12j.tj1, w12j.tj2, w12j.tj3, w12j.tj4,
+            w12j.tj5, w12j.tj6, w12j.tj7, w12j.tj8,
+            w12j.tj9, w12j.tj10, w12j.tj11, w12j.tj12,
+            RenderValue(&w),
+        ).unwrap();
+    });
+    assert_eq!(&format!("{:x}", f.compute()),
+               *lookup(W12J_SECOND_HASHES, &tj_max).expect("hash not available"));
 }

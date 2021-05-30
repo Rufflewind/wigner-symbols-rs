@@ -220,15 +220,26 @@ pub fn wigner_12j_second_raw(this: Wigner12jSecond) -> SignedSqrt {
         tj11 + tj12,
     ).0;
 
-    let z: SignedSqrt = (0 .. tkmax - tkmin + 1).map(|i| {
-        let tk = tkmin + i;
-        (tk + 1)
-            * Wigner6j {tj1: tj9, tj2: tj10, tj3: tk, tj4: tj3, tj5: tj1, tj6: tj5}.value()
-            * Wigner6j {tj1: tj11, tj2: tj12, tj3: tk, tj4: tj3, tj5: tj1, tj6: tj6}.value()
-            * Wigner6j {tj1: tj9, tj2: tj10, tj3: tk, tj4: tj4, tj5: tj2, tj6: tj7}.value()
-            * Wigner6j {tj1: tj11, tj2: tj12, tj3: tk, tj4: tj4, tj5: tj2, tj6: tj8}.value()
+    let z2: Integer = (0 .. (tkmax - tkmin) / 2 + 1).map(|i| {
+        let tk = tkmin + i * 2;
+        Integer::from(tk + 1)
+            * tetrahedral_sum(tj9, tj1, tj5, tj3, tj10, tk)
+            * tetrahedral_sum(tj3, tj12, tj6, tj11, tj1, tk)
+            * tetrahedral_sum(tj4, tj10, tj7, tj9, tj2, tk)
+            * tetrahedral_sum(tj11, tj2, tj7, tj4, tj12, tk)
     }).sum();
-    phase(tj5 - tj6 - tj7 + tj8) * z
+
+    let z1 =
+        triangular_factor(tj9, tj1, tj5)
+        * triangular_factor(tj3, tj10, tj5)
+        * triangular_factor(tj3, tj12, tj6)
+        * triangular_factor(tj11, tj1, tj6)
+        * triangular_factor(tj4, tj10, tj7)
+        * triangular_factor(tj9, tj2, tj7)
+        * triangular_factor(tj11, tj2, tj8)
+        * triangular_factor(tj4, tj12, tj8);
+
+    SignedSqrt::new(Integer::from(phase(tj5 - tj6 - tj7 + tj8)) * z2, z1)
 }
 
 
@@ -417,6 +428,39 @@ pub fn get_9tjs(
     for tj8 in get_triangular_tjs(tj_max, tj2, tj5) {
     for tj9 in get_bitriangular_tjs(tj_max, tj7, tj8, tj3, tj6) {
         callback(Wigner9j { tj1, tj2, tj3, tj4, tj5, tj6, tj7, tj8, tj9 });
+    }
+    }
+    }
+    }
+    }
+    }
+    }
+    }
+    }
+}
+
+/// Get all possible arguments of the second type of the Wigner 12-j symbol that satisfy the
+/// selection rules up to a maximum of `j_max`.
+pub fn get_12tjs_second(
+    tj_max: i32,
+    callback: &mut dyn FnMut(Wigner12jSecond),
+) {
+    for tj1 in 0 .. tj_max + 1 {
+    for tj2 in 0 .. tj_max + 1 {
+    for tj3 in 0 .. tj_max + 1 {
+    for tj5 in 0 .. tj_max + 1 {
+    for tj6 in 0 .. tj_max + 1 {
+    for tj9 in get_triangular_tjs(tj_max, tj1, tj5) {
+    for tj10 in get_triangular_tjs(tj_max, tj3, tj5) {
+    for tj11 in get_triangular_tjs(tj_max, tj1, tj6) {
+    for tj12 in get_triangular_tjs(tj_max, tj3, tj6) {
+    for tj7 in get_triangular_tjs(tj_max, tj2, tj9) {
+    for tj8 in get_triangular_tjs(tj_max, tj2, tj11) {
+    for tj4 in get_bitriangular_tjs(tj_max, tj7, tj10, tj8, tj12) {
+        callback(Wigner12jSecond { tj1, tj2, tj3, tj4, tj5, tj6, tj7, tj8, tj9, tj10, tj11, tj12 });
+    }
+    }
+    }
     }
     }
     }

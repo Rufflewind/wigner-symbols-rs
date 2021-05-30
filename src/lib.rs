@@ -4,8 +4,7 @@ pub mod internal;
 pub mod regge;
 
 use std::cmp::Ordering;
-use std::iter::Sum;
-use std::ops::{Add, Mul};
+use std::ops::Mul;
 use rug::{Integer, Rational};
 use rug::ops::Pow;
 
@@ -51,17 +50,6 @@ impl SignedSqrt {
     #[inline]
     pub fn signed_sq(self) -> Rational {
         self.0
-    }
-}
-
-impl Add<SignedSqrt> for SignedSqrt {
-    type Output = Self;
-    fn add(self, other: Self) -> Self::Output {
-        SignedSqrt(
-            Rational::from_f64(
-                self.signed_sq().to_f64().sqrt() + other.signed_sq().to_f64().sqrt()
-            ).unwrap().pow(2)
-        )
     }
 }
 
@@ -115,14 +103,6 @@ impl From<SignedSqrt> for f64 {
         let sign = f64::from(internal::ordering_to_i32(s.sign()));
         let radical = s.sq().to_f64().sqrt();
         sign * radical
-    }
-}
-
-impl Sum for SignedSqrt {
-    fn sum<I>(iter: I) -> Self where I: Iterator<Item = Self> {
-        iter.fold(Self { 0: Rational::from(0) }, |acc, x| {
-            acc + x
-        })
     }
 }
 
