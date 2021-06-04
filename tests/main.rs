@@ -40,7 +40,7 @@ const W9J_HASHES: &[(i32, &str)] = &[
 const W12J_SECOND_HASHES: &[(i32, &str)] = &[
     (0, "1133f539027171d60d87a58f56abf094"),
     (2, "f6c1c20b5613ba1c128783dd4d3e8ff5"),
-    (4, "f6c1c20b5613ba1c128783dd4d3e8ff5"),
+    (4, "589b4b938439ca45c9ec24d516f3a4f0"),
 ];
 
 fn lookup<'a, K: Eq, V>(table: &'a [(K, V)], key: &K) -> Option<&'a V> {
