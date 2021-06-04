@@ -37,6 +37,12 @@ const W9J_HASHES: &[(i32, &str)] = &[
     (10, "479c0a020eaceff5539e2dda2200c1ab"), // 5898846
 ];
 
+const W12J_SECOND_HASHES: &[(i32, &str)] = &[
+    (0, "1133f539027171d60d87a58f56abf094"),
+    (2, "f6c1c20b5613ba1c128783dd4d3e8ff5"),
+    (4, "589b4b938439ca45c9ec24d516f3a4f0"),
+];
+
 fn lookup<'a, K: Eq, V>(table: &'a [(K, V)], key: &K) -> Option<&'a V> {
     table.iter().find(|&&(ref k, _)| k == key).map(|x| &x.1)
 }
@@ -263,4 +269,23 @@ fn test_regge6j() {
     for (regge, value) in &map {
         assert_eq!(vec[regge.index()], (*regge, value.clone()));
     }
+}
+
+#[test]
+fn test_wigner_12j_second() {
+    let tj_max = 4;
+    let mut f = md5::Context::new();
+    get_12tjs_second(tj_max, &mut |w12j| {
+        let w = w12j.value();
+        write!(
+            f,
+            "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n",
+            w12j.tj1, w12j.tj2, w12j.tj3, w12j.tj4,
+            w12j.tj5, w12j.tj6, w12j.tj7, w12j.tj8,
+            w12j.tj9, w12j.tj10, w12j.tj11, w12j.tj12,
+            RenderValue(&w),
+        ).unwrap();
+    });
+    assert_eq!(&format!("{:x}", f.compute()),
+               *lookup(W12J_SECOND_HASHES, &tj_max).expect("hash not available"));
 }

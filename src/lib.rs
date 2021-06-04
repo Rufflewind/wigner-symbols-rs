@@ -230,3 +230,44 @@ impl Wigner9j {
         }
     }
 }
+
+/// symmetrized version of second type of Wigner 12-j symbol
+///
+/// ```text
+/// ⎧j1  j2  j3  j4⎫
+/// |j5  j6  j7  j8|
+/// ⎩j9 j10 j11 j12⎭
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct Wigner12jSecond {
+    pub tj1: i32,
+    pub tj2: i32,
+    pub tj3: i32,
+    pub tj4: i32,
+    pub tj5: i32,
+    pub tj6: i32,
+    pub tj7: i32,
+    pub tj8: i32,
+    pub tj9: i32,
+    pub tj10: i32,
+    pub tj11: i32,
+    pub tj12: i32,
+}
+
+impl Wigner12jSecond {
+    pub fn value(self) -> SignedSqrt {
+        if internal::triangle_condition(self.tj1, self.tj5, self.tj9) &&
+            internal::triangle_condition(self.tj1, self.tj6, self.tj11) &&
+            internal::triangle_condition(self.tj2, self.tj7, self.tj9) &&
+            internal::triangle_condition(self.tj2, self.tj8, self.tj11) &&
+            internal::triangle_condition(self.tj3, self.tj5, self.tj10) &&
+            internal::triangle_condition(self.tj3, self.tj6, self.tj12) &&
+            internal::triangle_condition(self.tj4, self.tj7, self.tj10) &&
+            internal::triangle_condition(self.tj4, self.tj8, self.tj12)
+        {
+            internal::wigner_12j_second_raw(self)
+        } else {
+            Default::default()
+        }
+    }
+}
