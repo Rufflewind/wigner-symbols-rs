@@ -231,13 +231,15 @@ impl Wigner9j {
     }
 }
 
-/// symmetrized version of second type of Wigner 12-j symbol
+/// Symmetrized Wigner 12-j symbol of the second kind
 ///
 /// ```text
 /// ⎧j1  j2  j3  j4⎫
 /// |j5  j6  j7  j8|
 /// ⎩j9 j10 j11 j12⎭
 /// ```
+///
+/// See Yutsis et al (1962), page 62, equation (19.3).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Wigner12jSecond {
     pub tj1: i32,
